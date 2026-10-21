@@ -1,5 +1,20 @@
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  collection,
+  doc,
+  getDocs,
+  limit,
+  onSnapshot,
+  orderBy,
+  query,
+  setDoc,
+  updateDoc,
+  where,
+} from "firebase/firestore";
+import { signOut } from "firebase/auth";
+import { auth } from "../firebase";
+import { db } from "../firebase";
 import "./App.css";
 
 const STORAGE_KEY = "workout-habit-data";
@@ -189,14 +204,45 @@ function getExerciseNames(workouts) {
   return [...new Set(workouts.map((w) => w.name).filter(Boolean))].sort();
 }
 
-function getLevel(xp) {
-  const level = Math.floor(xp / 250) + 1;
-  const withinLevel = xp % 250;
-  return { level, withinLevel, next: 250 };
+const RANKS = [
+  { name: "Iron", min: 0, next: 500 },
+  { name: "Bronze", min: 500, next: 1500 },
+  { name: "Silver", min: 1500, next: 3000 },
+  { name: "Gold", min: 3000, next: 5500 },
+  { name: "Platinum", min: 5500, next: 9000 },
+  { name: "Diamond", min: 9000, next: 15000 },
+  { name: "Master", min: 15000, next: null },
+];
+
+function getRank(xp) {
+  return [...RANKS].reverse().find((rank) => xp >= rank.min) || RANKS[0];
 }
 
-function App() {
+function calculateXp(workouts, goal, streak) {
+  const workoutXp = workouts.length * 100;
+  const weekCounts = new Map();
+  const personalRecords = new Map();
+  for (const workout of workouts) {
+    if (workout.date) {
+      const key = getWeekKey(workout.date);
+      const days = weekCounts.get(key) || new Set();
+      days.add(workout.date);
+      weekCounts.set(key, days);
+    }
+    const name = String(workout.name || "").trim().toLowerCase();
+    if (name) personalRecords.set(name, Math.max(personalRecords.get(name) || 0, Number(workout.weight || 0)));
+  }
+  const goalXp = [...weekCounts.values()].filter((days) => days.size >= goal).length * 250;
+  const prXp = personalRecords.size * 50;
+  const streakXp = Math.floor((streak?.current || 0) / 7) * 150;
+  return workoutXp + goalXp + prXp + streakXp;
+}
+
+function App({ userId, userEmail = "", onLogout }) {
   const initial = useMemo(() => readStoredData(), []);
+  const cloudReadyRef = useRef(false);
+  const cloudDataRef = useRef("");
+  const [cloudStatus, setCloudStatus] = useState("connecting");
 
   const [workouts, setWorkouts] = useState(initial.workouts);
   const [goal, setGoal] = useState(initial.goal);
@@ -218,26 +264,239 @@ function App() {
   const [message, setMessage] = useState("");
   const [search, setSearch] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [friendEmail, setFriendEmail] = useState("");
+  const [friendBusy, setFriendBusy] = useState(false);
+  const [friendError, setFriendError] = useState("");
+  const [incomingRequests, setIncomingRequests] = useState([]);
+  const [friends, setFriends] = useState([]);
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [timerSeconds, setTimerSeconds] = useState(0);
+  const [timerRunning, setTimerRunning] = useState(false);
 
+  // Keep a local backup, but Firestore is the primary source of truth.
   useEffect(() => {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ workouts, goal })
-    );
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ workouts, goal }));
   }, [workouts, goal]);
 
   useEffect(() => {
     localStorage.setItem(
       EXTRA_KEY,
-      JSON.stringify({
-        bodyWeights,
-        drafts,
-        templates,
-        achievements,
-        profile,
-      })
+      JSON.stringify({ bodyWeights, drafts, templates, achievements, profile })
     );
   }, [bodyWeights, drafts, templates, achievements, profile]);
+
+  const cloudData = useMemo(() => ({
+    workouts,
+    goal,
+    bodyWeights,
+    drafts,
+    templates,
+    achievements,
+    profile,
+  }), [workouts, goal, bodyWeights, drafts, templates, achievements, profile]);
+
+  // Each account gets its own document. Existing browser data is migrated only
+  // if that account does not yet have a FitTrack document in Firestore.
+  useEffect(() => {
+    if (!userId) {
+      cloudReadyRef.current = false;
+      setCloudStatus("Sign in to sync");
+      return undefined;
+    }
+
+    cloudReadyRef.current = false;
+    setCloudStatus("Connecting to cloud…");
+    const userDoc = doc(db, "users", userId, "data", "fittrack");
+
+    const unsubscribe = onSnapshot(
+      userDoc,
+      async (snapshot) => {
+        if (snapshot.exists()) {
+          const remote = snapshot.data();
+          const normalized = {
+            workouts: Array.isArray(remote.workouts) ? remote.workouts : [],
+            goal: Number(remote.goal) || 4,
+            bodyWeights: Array.isArray(remote.bodyWeights) ? remote.bodyWeights : [],
+            drafts: Array.isArray(remote.drafts) ? remote.drafts : [],
+            templates: Array.isArray(remote.templates) ? remote.templates : [],
+            achievements: Array.isArray(remote.achievements) ? remote.achievements : [],
+            profile: remote.profile || {
+              name: "Fitness Journey", unit: "kg", reminder: "18:00", reminderEnabled: false,
+            },
+          };
+          cloudDataRef.current = JSON.stringify(normalized);
+          setWorkouts(normalized.workouts);
+          setGoal(normalized.goal);
+          setBodyWeights(normalized.bodyWeights);
+          setDrafts(normalized.drafts);
+          setTemplates(normalized.templates);
+          setAchievements(normalized.achievements);
+          setProfile(normalized.profile);
+          cloudReadyRef.current = true;
+          setCloudStatus("Cloud synced");
+        } else {
+          // First-time cloud setup: preserve and migrate this browser's saved data.
+          const local = readStoredData();
+          const serialized = JSON.stringify(local);
+          cloudDataRef.current = serialized;
+          try {
+            await setDoc(userDoc, { ...local, updatedAt: new Date().toISOString() });
+            setWorkouts(local.workouts);
+            setGoal(local.goal);
+            setBodyWeights(local.bodyWeights);
+            setDrafts(local.drafts);
+            setTemplates(local.templates);
+            setAchievements(local.achievements);
+            setProfile(local.profile);
+            cloudReadyRef.current = true;
+            setCloudStatus("Cloud synced");
+          } catch (error) {
+            console.error("Could not initialize FitTrack cloud data:", error);
+            setCloudStatus("Cloud sync failed");
+          }
+        }
+      },
+      (error) => {
+        console.error("Firestore sync error:", error);
+        cloudReadyRef.current = false;
+        setCloudStatus("Cloud sync failed");
+      }
+    );
+
+    return () => {
+      unsubscribe();
+      cloudReadyRef.current = false;
+    };
+  }, [userId]);
+
+  // Write changes to the signed-in user's Firestore document. Snapshot updates
+  // from another device are not written back unless the data actually differs.
+  useEffect(() => {
+    if (!userId || !cloudReadyRef.current) return;
+    const serialized = JSON.stringify(cloudData);
+    if (serialized === cloudDataRef.current) return;
+
+    cloudDataRef.current = serialized;
+    setCloudStatus("Saving to cloud…");
+    const userDoc = doc(db, "users", userId, "data", "fittrack");
+    setDoc(userDoc, { ...cloudData, updatedAt: new Date().toISOString() }, { merge: true })
+      .then(() => setCloudStatus("Cloud synced"))
+      .catch((error) => {
+        console.error("Could not save FitTrack cloud data:", error);
+        setCloudStatus("Cloud sync failed");
+      });
+  }, [userId, cloudData]);
+
+  // Publish only the summary needed for the friends list and leaderboard.
+  const streakForProfile = useMemo(() => weeklyStreak(workouts, goal), [workouts, goal]);
+  const xpForProfile = useMemo(() => calculateXp(workouts, goal, streakForProfile), [workouts, goal, streakForProfile]);
+  const rankForProfile = getRank(xpForProfile);
+
+  useEffect(() => {
+    if (!userId) return;
+    const publicProfileRef = doc(db, "publicProfiles", userId);
+    setDoc(publicProfileRef, {
+      uid: userId,
+      email: String(userEmail || "").trim().toLowerCase(),
+      displayName: profile.name || (userEmail ? userEmail.split("@")[0] : "FitTrack member"),
+      avatarDataUrl: profile.avatarDataUrl || "",
+      xp: xpForProfile,
+      rank: rankForProfile.name,
+      workouts: workouts.length,
+      updatedAt: new Date().toISOString(),
+    }, { merge: true }).catch((error) => {
+      console.error("Could not update public FitTrack profile:", error);
+    });
+  }, [userId, userEmail, profile.name, profile.avatarDataUrl, xpForProfile, rankForProfile.name, workouts.length]);
+
+  useEffect(() => {
+    if (!userId) return undefined;
+    const requestsQuery = query(collection(db, "friendRequests"), where("recipientId", "==", userId), where("status", "==", "pending"));
+    const stopRequests = onSnapshot(requestsQuery, (snapshot) => {
+      setIncomingRequests(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })));
+    }, (error) => console.error("Friend request listener error:", error));
+    const friendshipQuery = query(collection(db, "friendships"), where("userIds", "array-contains", userId));
+    const stopFriends = onSnapshot(friendshipQuery, async (snapshot) => {
+      const ids = snapshot.docs.map((item) => (item.data().userIds || []).find((id) => id !== userId)).filter(Boolean);
+      const profileResults = await Promise.all(ids.map(async (id) => {
+        try {
+          const profileSnap = await getDocs(query(collection(db, "publicProfiles"), where("uid", "==", id), limit(1)));
+          return profileSnap.empty ? { uid: id, displayName: "FitTrack member", xp: 0, rank: "Iron", workouts: 0 } : { ...profileSnap.docs[0].data(), uid: id };
+        } catch (error) {
+          console.error("Could not load friend profile:", error);
+          return { uid: id, displayName: "FitTrack member", xp: 0, rank: "Iron", workouts: 0 };
+        }
+      }));
+      setFriends(profileResults);
+    }, (error) => console.error("Friend list listener error:", error));
+    const leaderboardQuery = query(collection(db, "publicProfiles"), orderBy("xp", "desc"), limit(50));
+    const stopLeaderboard = onSnapshot(leaderboardQuery, (snapshot) => {
+      setLeaderboard(snapshot.docs.map((item) => ({ uid: item.id, ...item.data() })));
+    }, (error) => console.error("Leaderboard listener error:", error));
+    return () => { stopRequests(); stopFriends(); stopLeaderboard(); };
+  }, [userId]);
+
+  useEffect(() => {
+    if (!timerRunning) return undefined;
+    const timer = window.setInterval(() => setTimerSeconds((seconds) => seconds + 1), 1000);
+    return () => window.clearInterval(timer);
+  }, [timerRunning]);
+
+  async function sendFriendRequest(event) {
+    event.preventDefault();
+    setFriendError("");
+    const email = friendEmail.trim().toLowerCase();
+    if (!email || email === String(userEmail).toLowerCase()) {
+      setFriendError("Enter another user's account email.");
+      return;
+    }
+    setFriendBusy(true);
+    try {
+      const results = await getDocs(query(collection(db, "publicProfiles"), where("email", "==", email), limit(1)));
+      if (results.empty) throw new Error("No FitTrack profile found for that email. Ask them to sign in to FitTrack first.");
+      const target = results.docs[0].data();
+      if (target.uid === userId) throw new Error("You cannot add yourself.");
+      if (friends.some((friend) => friend.uid === target.uid)) throw new Error("You are already friends.");
+      const requestId = `${userId}_${target.uid}`;
+      await setDoc(doc(db, "friendRequests", requestId), {
+        senderId: userId,
+        senderEmail: String(userEmail || "").toLowerCase(),
+        senderName: profile.name || (userEmail ? userEmail.split("@")[0] : "FitTrack member"),
+        recipientId: target.uid,
+        recipientName: target.displayName || "FitTrack member",
+        status: "pending",
+        createdAt: new Date().toISOString(),
+      });
+      setFriendEmail("");
+      notify("Friend request sent.");
+    } catch (error) {
+      setFriendError(error.message || "Could not send friend request.");
+    } finally {
+      setFriendBusy(false);
+    }
+  }
+
+  async function acceptFriendRequest(request) {
+    try {
+      await updateDoc(doc(db, "friendRequests", request.id), { status: "accepted", acceptedAt: new Date().toISOString() });
+      const userIds = [request.senderId, request.recipientId].sort();
+      await setDoc(doc(db, "friendships", userIds.join("_")), { userIds, createdAt: new Date().toISOString() });
+      notify(`You and ${request.senderName || "your friend"} are now friends.`);
+    } catch (error) {
+      console.error(error);
+      notify("Could not accept request. Check Firestore rules.");
+    }
+  }
+
+  async function declineFriendRequest(request) {
+    try {
+      await updateDoc(doc(db, "friendRequests", request.id), { status: "declined", declinedAt: new Date().toISOString() });
+      notify("Friend request declined.");
+    } catch (error) {
+      console.error(error);
+      notify("Could not decline request. Check Firestore rules.");
+    }
+  }
 
   const sorted = useMemo(
     () =>
@@ -289,12 +548,11 @@ function App() {
     (a, b) => dateObject(b.date) - dateObject(a.date)
   )[0];
 
-  const xp = workouts.reduce(
-    (total, w) => total + 25 + (Number(w.duration) >= 30 ? 5 : 0),
-    0
-  );
-
-  const level = getLevel(xp);
+  const xp = calculateXp(workouts, goal, streak);
+  const rank = getRank(xp);
+  const nextRank = RANKS.find((item) => item.min > xp);
+  const rankProgress = nextRank ? Math.min(100, Math.max(0, ((xp - rank.min) / (nextRank.min - rank.min)) * 100)) : 100;
+  const level = { level: rank.name, withinLevel: nextRank ? xp - rank.min : xp - rank.min, next: nextRank ? nextRank.min - rank.min : 0 };
 
   const earned = [
     {
@@ -401,7 +659,7 @@ function App() {
       sets: Math.max(1, Number(form.sets) || 1),
       reps: Math.max(1, Number(form.reps) || 1),
       weight: Math.max(0, Number(form.weight) || 0),
-      duration: Math.max(0, Number(form.duration) || 0),
+      duration: Math.max(0, timerSeconds > 0 ? Math.ceil(timerSeconds / 60) : Number(form.duration) || 0),
       note: form.note.trim(),
     };
 
@@ -412,12 +670,14 @@ function App() {
       notify("Workout updated.");
     } else {
       setWorkouts((previous) => [...previous, item]);
-      notify("Workout saved! +25 XP");
+      notify("Workout saved! +100 XP");
     }
 
     setShowForm(false);
     setEditingId(null);
     setForm(emptyForm());
+    setTimerRunning(false);
+    setTimerSeconds(0);
   }
 
   function deleteWorkout(id) {
@@ -507,6 +767,7 @@ function App() {
     { name: "Habit Calendar", icon: "▦" },
     { name: "Achievements", icon: "🏆" },
     { name: "Challenges", icon: "🎯" },
+    { name: "Friends & Leaderboard", icon: "👥" },
     { name: "Settings", icon: "⚙" },
   ];
 
@@ -1171,6 +1432,38 @@ function App() {
     );
   }
 
+  function FriendsPage() {
+    const rankedFriends = [...friends].sort((a, b) => Number(b.xp || 0) - Number(a.xp || 0));
+    const rankedLeaderboard = [...leaderboard].sort((a, b) => Number(b.xp || 0) - Number(a.xp || 0));
+    return (
+      <>
+        <div className="page-heading">
+          <div><p className="eyebrow">TRAIN TOGETHER</p><h1>Friends & Leaderboard</h1><p>Add FitTrack users and compare your progress.</p></div>
+        </div>
+        <section className="panel">
+          <PanelHeading title="Add a friend" subtitle="Use the email address they use to sign in to FitTrack." />
+          <form className="ft-friend-form" onSubmit={sendFriendRequest}>
+            <input type="email" value={friendEmail} onChange={(event) => setFriendEmail(event.target.value)} placeholder="friend@example.com" required />
+            <button className="primary-btn" type="submit" disabled={friendBusy}>{friendBusy ? "Sending…" : "Send request"}</button>
+          </form>
+          {friendError && <p className="auth-error" role="alert">{friendError}</p>}
+        </section>
+        {incomingRequests.length > 0 && <section className="panel ft-section-gap">
+          <PanelHeading title="Friend requests" subtitle={`${incomingRequests.length} pending request${incomingRequests.length === 1 ? "" : "s"}`} />
+          <div className="ft-social-list">{incomingRequests.map((request) => <div className="ft-social-row" key={request.id}><div className="profile-avatar">{String(request.senderName || "F").slice(0, 2).toUpperCase()}</div><div className="ft-social-person"><strong>{request.senderName || "FitTrack member"}</strong><small>{request.senderEmail || "Wants to connect with you"}</small></div><div className="ft-request-actions"><button className="primary-btn" onClick={() => acceptFriendRequest(request)}>Accept</button><button className="secondary-btn" onClick={() => declineFriendRequest(request)}>Decline</button></div></div>)}</div>
+        </section>}
+        <section className="panel ft-section-gap">
+          <PanelHeading title="Your friends" subtitle="XP and workout totals update as friends use FitTrack." />
+          {rankedFriends.length ? <div className="ft-social-list">{rankedFriends.map((friend, index) => <div className="ft-social-row" key={friend.uid}><span className="ft-place">#{index + 1}</span><div className="profile-avatar">{friend.avatarDataUrl ? <img src={friend.avatarDataUrl} alt="" /> : String(friend.displayName || "F").slice(0, 2).toUpperCase()}</div><div className="ft-social-person"><strong>{friend.displayName || "FitTrack member"}</strong><small>{friend.rank || "Iron"} · {friend.workouts || 0} workouts</small></div><strong className="ft-social-xp">{Number(friend.xp || 0).toLocaleString()} XP</strong></div>)}</div> : <div className="ft-empty"><span>👥</span><strong>Your friend list is empty</strong><p>Send a request using your friend's FitTrack account email.</p></div>}
+        </section>
+        <section className="panel ft-section-gap">
+          <PanelHeading title="Global leaderboard" subtitle="Top 50 FitTrack profiles by XP. Only signed-in users with published profiles appear." />
+          <div className="ft-social-list">{rankedLeaderboard.map((person, index) => <div className={`ft-social-row ${person.uid === userId ? "ft-self-row" : ""}`} key={person.uid}><span className="ft-place">#{index + 1}</span><div className="profile-avatar">{person.avatarDataUrl ? <img src={person.avatarDataUrl} alt="" /> : String(person.displayName || "F").slice(0, 2).toUpperCase()}</div><div className="ft-social-person"><strong>{person.displayName || "FitTrack member"}{person.uid === userId ? " (You)" : ""}</strong><small>{person.rank || "Iron"} · {person.workouts || 0} workouts</small></div><strong className="ft-social-xp">{Number(person.xp || 0).toLocaleString()} XP</strong></div>)}{!rankedLeaderboard.length && <p className="ft-muted">Leaderboard will appear as FitTrack users sign in.</p>}</div>
+        </section>
+      </>
+    );
+  }
+
   function SettingsPage() {
     return (
       <>
@@ -1183,7 +1476,7 @@ function App() {
         </div>
 
         <section className="panel">
-          <PanelHeading title="Profile" subtitle="This name is displayed in your FitTrack sidebar" />
+          <PanelHeading title="Profile" subtitle="This name appears in your sidebar, friends list, and leaderboard" />
           <form
             className="ft-settings-form"
             onSubmit={(event) => {
@@ -1198,6 +1491,29 @@ function App() {
                 onChange={(event) => setProfile((p) => ({ ...p, name: event.target.value }))}
                 placeholder="Your name"
               />
+            </label>
+            <label>
+              Profile picture
+              <input type="file" accept="image/*" onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = () => {
+                  const image = new Image();
+                  image.onload = () => {
+                    const canvas = document.createElement("canvas");
+                    const size = 256;
+                    const scale = Math.min(size / image.width, size / image.height, 1);
+                    canvas.width = Math.max(1, Math.round(image.width * scale));
+                    canvas.height = Math.max(1, Math.round(image.height * scale));
+                    canvas.getContext("2d").drawImage(image, 0, 0, canvas.width, canvas.height);
+                    setProfile((p) => ({ ...p, avatarDataUrl: canvas.toDataURL("image/jpeg", 0.78) }));
+                    notify("Profile picture updated and will sync with your account.");
+                  };
+                  image.src = String(reader.result);
+                };
+                reader.readAsDataURL(file);
+              }} />
             </label>
             <label>
               Weight unit
@@ -1233,7 +1549,14 @@ function App() {
         </section>
 
         <section className="panel ft-section-gap">
-          <PanelHeading title="Data storage" subtitle="Workout data is saved in this browser in this version" />
+          <PanelHeading title={`${rank.name} rank`} subtitle="Earn XP by logging workouts, meeting weekly goals, and setting exercise records." />
+          <div className="ft-rank-line"><strong>{xp.toLocaleString()} XP</strong><span>{nextRank ? `${Math.max(0, nextRank.min - xp).toLocaleString()} XP to ${nextRank.name}` : "Maximum rank reached"}</span></div>
+          <div className="ft-rank-track"><div className="ft-rank-fill" style={{ width: `${rankProgress}%` }} /></div>
+          <div className="ft-rank-tiers">{RANKS.map((tier) => <span key={tier.name} className={tier.name === rank.name ? "active" : ""}>{tier.name}</span>)}</div>
+        </section>
+
+        <section className="panel ft-section-gap">
+          <PanelHeading title="Data storage" subtitle="Workout data is saved to your signed-in Firestore account" />
           <div className="ft-summary-list">
             <div><span>Workout entries</span><strong>{workouts.length}</strong></div>
             <div><span>Body weight records</span><strong>{bodyWeights.length}</strong></div>
@@ -1241,7 +1564,7 @@ function App() {
             <div><span>Templates</span><strong>{templates.length}</strong></div>
           </div>
           <p className="ft-muted">
-            Clearing browser storage or using a different browser can affect locally saved data. Firebase cloud synchronization is not implemented by this App.jsx replacement.
+            Your FitTrack document syncs through Firestore when the cloud status says Cloud synced. Local storage is kept as a migration/backup source.
           </p>
           <button
             className="secondary-btn"
@@ -1269,12 +1592,6 @@ function App() {
           </button>
         </section>
 
-        <section className="panel ft-section-gap">
-          <PanelHeading title="Session" subtitle="Account sign-out is handled by your existing authentication gate" />
-          <p className="ft-muted">
-            Use your existing account controls to sign out. Signing out should not delete saved workout data.
-          </p>
-        </section>
       </>
     );
   }
@@ -1307,13 +1624,16 @@ function App() {
 
         <div className="sidebar-bottom">
           <div className="profile-mini">
-            <div className="profile-avatar">FT</div>
+            <div className="profile-avatar">{profile.avatarDataUrl ? <img src={profile.avatarDataUrl} alt="Profile" /> : String(profile.name || "FT").slice(0, 2).toUpperCase()}</div>
             <div>
               <strong>{profile.name || "Fitness Journey"}</strong>
-              <small>Level {level.level} · {xp} XP</small>
+              <small>{rank.name} · {xp.toLocaleString()} XP</small>
             </div>
           </div>
           <div className="ft-sidebar-streak">🔥 {streak.current} week streak</div>
+          <div className="ft-sidebar-rank"><div className="ft-rank-track"><div className="ft-rank-fill" style={{ width: `${rankProgress}%` }} /></div><small>{nextRank ? `${Math.max(0, nextRank.min - xp)} XP to ${nextRank.name}` : "Master rank"}</small></div>
+          <small className="ft-muted" style={{ display: "block", marginTop: 8 }}>{cloudStatus}</small>
+          <button className="ft-logout-btn" onClick={() => (onLogout ? onLogout() : signOut(auth))} title={`Sign out ${userEmail || "of FitTrack"}`}>↪ Log out</button>
         </div>
       </aside>
 
@@ -1325,14 +1645,15 @@ function App() {
         </div>
 
         <div className="page-content">
-          {tab === "Dashboard" && <Dashboard />}
-          {tab === "Workouts" && <WorkoutsPage />}
-          {tab === "Exercise Progress" && <ExerciseProgressPage />}
-          {tab === "Progress" && <ProgressPage />}
-          {tab === "Habit Calendar" && <CalendarPage />}
-          {tab === "Achievements" && <AchievementsPage />}
-          {tab === "Challenges" && <ChallengesPage />}
-          {tab === "Settings" && <SettingsPage />}
+          {tab === "Dashboard" && Dashboard()}
+          {tab === "Workouts" && WorkoutsPage()}
+          {tab === "Exercise Progress" && ExerciseProgressPage()}
+          {tab === "Progress" && ProgressPage()}
+          {tab === "Habit Calendar" && CalendarPage()}
+          {tab === "Achievements" && AchievementsPage()}
+          {tab === "Challenges" && ChallengesPage()}
+          {tab === "Settings" && SettingsPage()}
+          {tab === "Friends & Leaderboard" && FriendsPage()}
         </div>
       </main>
 
@@ -1351,6 +1672,13 @@ function App() {
               <button className="close-btn" onClick={() => setShowForm(false)}>×</button>
             </div>
 
+            <div className="ft-timer-panel">
+              <div><small>WORKOUT TIMER</small><strong>{String(Math.floor(timerSeconds / 3600)).padStart(2, "0")}:{String(Math.floor((timerSeconds % 3600) / 60)).padStart(2, "0")}:{String(timerSeconds % 60).padStart(2, "0")}</strong></div>
+              <div className="ft-timer-actions">
+                <button type="button" className="primary-btn" onClick={() => setTimerRunning((running) => !running)}>{timerRunning ? "Pause" : timerSeconds ? "Resume" : "Start"}</button>
+                <button type="button" className="secondary-btn" onClick={() => { setTimerRunning(false); setTimerSeconds(0); }}>Reset</button>
+              </div>
+            </div>
             <form onSubmit={saveWorkout}>
               <label>
                 Exercise name

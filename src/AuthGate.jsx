@@ -60,18 +60,7 @@ export default function AuthGate() {
   }
 
   if (user) {
-    return (
-      <>
-        <App />
-        <button
-          className="auth-logout"
-          onClick={() => signOut(auth)}
-          title={`Signed in as ${user.email || "user"}`}
-        >
-          Log out
-        </button>
-      </>
-    );
+    return <App userId={user.uid} userEmail={user.email || ""} onLogout={() => signOut(auth)} />;
   }
 
   return (
