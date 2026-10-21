@@ -1426,3 +1426,667 @@ h1 {
     padding-top: 48px;
   }
 }
+
+
+/* FitTrack updated feature styles */
+
+.ft-section-gap {
+  margin-top: 20px;
+}
+
+.ft-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 32px 12px;
+  text-align: center;
+}
+
+.ft-empty > span {
+  font-size: 34px;
+}
+
+.ft-empty p,
+.ft-muted {
+  color: #9298a3;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.ft-goal-summary {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.ft-goal-summary > div:last-child {
+  min-width: 0;
+}
+
+.ft-goal-summary strong {
+  color: #edf0f5;
+  font-size: 13px;
+}
+
+.ft-goal-summary p {
+  margin: 6px 0 0;
+  color: #9298a3;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.ft-goal-ring {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  border: 5px solid #b4f36b;
+  border-radius: 50%;
+  background: #20271c;
+  color: #b4f36b;
+}
+
+.ft-goal-ring strong {
+  font-size: 14px;
+}
+
+.ft-summary-list {
+  display: grid;
+  gap: 0;
+}
+
+.ft-summary-list > div,
+.ft-table-row,
+.ft-saved-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid #292d35;
+}
+
+.ft-summary-list > div:last-child,
+.ft-table-row:last-child,
+.ft-saved-row:last-child {
+  border-bottom: 0;
+}
+
+.ft-summary-list span,
+.ft-saved-row > span {
+  color: #a4a9b2;
+  font-size: 12px;
+}
+
+.ft-summary-list strong,
+.ft-saved-row strong,
+.ft-table-row > strong {
+  color: #edf0f5;
+  font-size: 13px;
+  text-align: right;
+}
+
+.ft-mini-note {
+  margin-top: 20px;
+  padding: 12px;
+  border-radius: 7px;
+  background: #20251d;
+  color: #a6b395;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.ft-chart {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-around;
+  gap: 10px;
+  min-width: 0;
+  height: 205px;
+  margin: 18px 0 8px;
+  padding-top: 15px;
+}
+
+.ft-chart-column {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+
+.ft-chart-value {
+  min-height: 13px;
+  color: #aeb4be;
+  font-size: 9px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.ft-chart-track {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  width: 100%;
+  max-width: 42px;
+  flex: 1;
+  overflow: hidden;
+  border-radius: 5px 5px 2px 2px;
+  background: #252a32;
+}
+
+.ft-chart-bar {
+  width: 100%;
+  min-height: 3px;
+  border-radius: 5px 5px 0 0;
+  background: linear-gradient(180deg, #c9ff8d, #83bb49);
+  transition: height 0.25s ease;
+}
+
+.ft-chart-column small {
+  color: #9298a3;
+  font-size: 9px;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.ft-search,
+.ft-select {
+  width: 100%;
+  min-height: 42px;
+  margin-bottom: 18px;
+  padding: 10px 12px;
+  border: 1px solid #353a44;
+  border-radius: 7px;
+  background: #171a20;
+  color: #edf0f5;
+  font: inherit;
+}
+
+.ft-inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.ft-inline-form > input,
+.ft-inline-form label {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+
+.ft-inline-form label,
+.ft-settings-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  color: #aeb4be;
+  font-size: 11px;
+}
+
+.ft-inline-form input,
+.ft-settings-form input,
+.ft-settings-form select {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid #353a44;
+  border-radius: 7px;
+  background: #171a20;
+  color: #edf0f5;
+  font: inherit;
+}
+
+.ft-saved-row > div,
+.ft-table-row > div {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+
+.ft-saved-row small,
+.ft-table-row small {
+  color: #9298a3;
+  font-size: 10px;
+}
+
+.ft-icon-button {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #353a44;
+  border-radius: 6px;
+  background: transparent;
+  color: #b4f36b;
+}
+
+.ft-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ft-form-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.ft-level-row {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.ft-level-icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border: 1px solid #3b4930;
+  border-radius: 12px;
+  background: #222b1d;
+  font-size: 24px;
+}
+
+.ft-level-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.ft-level-main > strong {
+  color: #edf0f5;
+  font-size: 15px;
+}
+
+.ft-level-main p {
+  margin: 5px 0 12px;
+  color: #9298a3;
+  font-size: 11px;
+}
+
+.ft-progress-track {
+  width: 100%;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: #30343d;
+}
+
+.ft-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: #b4f36b;
+  transition: width 0.25s ease;
+}
+
+.ft-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ft-calendar > strong {
+  padding: 8px 0;
+  color: #9298a3;
+  font-size: 10px;
+  text-align: center;
+}
+
+.ft-calendar-day {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 55px;
+  border: 1px solid #2c3039;
+  border-radius: 7px;
+  color: #d9dde5;
+  font-size: 12px;
+}
+
+.ft-calendar-day.done {
+  border-color: #536e3d;
+  background: #202a1b;
+  color: #b4f36b;
+}
+
+.ft-calendar-day.today {
+  outline: 1px solid #b4f36b;
+  outline-offset: 1px;
+}
+
+.ft-calendar-day small {
+  font-size: 9px;
+}
+
+.ft-legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 20px;
+  color: #a4a9b2;
+  font-size: 11px;
+}
+
+.ft-legend > span:first-child {
+  color: #b4f36b;
+}
+
+.ft-legend .ft-legend-empty {
+  margin-left: 14px;
+  color: #4c525e;
+}
+
+.ft-achievement-grid,
+.ft-challenge-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.ft-achievement {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 17px;
+  border: 1px solid #30343d;
+  border-radius: 9px;
+  background: #171a20;
+}
+
+.ft-achievement.unlocked {
+  border-color: #3c4a30;
+  background: linear-gradient(130deg, #20291b, #171a20);
+}
+
+.ft-achievement.locked {
+  opacity: 0.65;
+}
+
+.ft-achievement-icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 43px;
+  height: 43px;
+  border-radius: 10px;
+  background: #292e36;
+  font-size: 22px;
+}
+
+.ft-achievement.unlocked .ft-achievement-icon {
+  background: #2b3822;
+}
+
+.ft-achievement > div:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+}
+
+.ft-achievement strong {
+  color: #edf0f5;
+  font-size: 12px;
+}
+
+.ft-achievement p {
+  margin: 5px 0 0;
+  color: #9298a3;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.ft-achievement > span {
+  color: #b4f36b;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.ft-challenge {
+  min-width: 0;
+}
+
+.ft-challenge-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ft-challenge-icon {
+  font-size: 28px;
+}
+
+.ft-challenge h2 {
+  margin: 17px 0 8px;
+  color: #edf0f5;
+  font-size: 16px;
+}
+
+.ft-challenge > p {
+  min-height: 36px;
+  color: #9298a3;
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.ft-challenge .ft-progress-track {
+  margin: 20px 0 10px;
+}
+
+.ft-challenge-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 14px;
+  color: #a4a9b2;
+  font-size: 10px;
+}
+
+.ft-challenge-meta strong {
+  color: #b4f36b;
+}
+
+.ft-done-tag {
+  border-color: #526d3c;
+  background: #202a1b;
+}
+
+.ft-settings-form {
+  display: grid;
+  gap: 16px;
+  max-width: 520px;
+  margin: 20px 0;
+}
+
+.ft-checkbox-label {
+  flex-direction: row !important;
+  align-items: center;
+}
+
+.ft-checkbox-label input {
+  width: 17px;
+  min-height: 17px;
+  accent-color: #b4f36b;
+}
+
+.ft-settings-form > button {
+  justify-self: start;
+}
+
+.secondary-btn {
+  min-height: 40px;
+  padding: 10px 13px;
+  border: 1px solid #3a404b;
+  border-radius: 7px;
+  background: #20242c;
+  color: #e3e7ee;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.secondary-btn:hover {
+  border-color: #b4f36b;
+}
+
+.ft-danger-btn {
+  border-color: #a94444;
+  background: #9f3838;
+  color: #fff;
+}
+
+.ft-danger-btn:hover {
+  background: #b74747;
+}
+
+.ft-confirm-modal > p {
+  color: #aeb4be;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.ft-toast {
+  position: fixed;
+  z-index: 200;
+  right: 24px;
+  bottom: 24px;
+  max-width: calc(100vw - 32px);
+  padding: 13px 18px;
+  border: 1px solid #536e3d;
+  border-radius: 8px;
+  background: #202a1b;
+  color: #d9f8c2;
+  box-shadow: 0 8px 28px #0005;
+  font-size: 12px;
+}
+
+.mobile-topbar {
+  display: none;
+}
+
+@media (max-width: 850px) {
+  .ft-achievement-grid,
+  .ft-challenge-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ft-achievement {
+    padding: 14px;
+  }
+}
+
+@media (max-width: 600px) {
+  .mobile-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border-bottom: 1px solid #292d35;
+    background: #11141a;
+  }
+
+  .mobile-topbar > strong {
+    flex: 1;
+    color: #edf0f5;
+    font-family: "Space Grotesk", sans-serif;
+    font-size: 13px;
+    letter-spacing: 1px;
+  }
+
+  .mobile-topbar .primary-btn {
+    min-height: 36px;
+    padding: 8px 11px;
+  }
+
+  .ft-goal-summary {
+    gap: 12px;
+  }
+
+  .ft-goal-ring {
+    width: 65px;
+    height: 65px;
+  }
+
+  .ft-chart {
+    gap: 5px;
+    height: 175px;
+  }
+
+  .ft-calendar {
+    gap: 4px;
+  }
+
+  .ft-calendar-day {
+    min-height: 42px;
+    flex-direction: column;
+    gap: 1px;
+    font-size: 11px;
+  }
+
+  .ft-inline-form {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ft-inline-form > input,
+  .ft-inline-form label {
+    width: 100%;
+  }
+
+  .ft-inline-form > button {
+    width: 100%;
+  }
+
+  .ft-saved-row {
+    gap: 7px;
+  }
+
+  .ft-saved-row .text-btn {
+    font-size: 10px;
+  }
+
+  .ft-toast {
+    right: 12px;
+    bottom: 12px;
+  }
+}
+
+@media (max-width: 380px) {
+  .ft-form-grid {
+    gap: 8px;
+  }
+
+  .ft-achievement {
+    gap: 8px;
+    padding: 11px;
+  }
+
+  .ft-achievement-icon {
+    width: 35px;
+    height: 35px;
+    font-size: 18px;
+  }
+
+  .ft-achievement > span {
+    font-size: 7px;
+  }
+}
