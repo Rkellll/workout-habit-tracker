@@ -4262,3 +4262,221 @@ h1 {
     font-size: 14px;
   }
 }
+
+
+/* =========================================================
+   FITTRACK UI POLISH — responsive cards, spacing and charts
+   ========================================================= */
+.ft-challenge-meta {
+  display:flex !important; align-items:center; justify-content:space-between;
+  flex-wrap:wrap; gap:12px 18px; margin:18px 0 12px; min-width:0;
+}
+.ft-challenge-progress { display:inline-flex; align-items:center; gap:7px; white-space:nowrap; font-weight:800; font-variant-numeric:tabular-nums; }
+.ft-challenge-progress i { color:var(--muted, #87909e); font-style:normal; }
+.ft-challenge-reward { display:inline-flex; align-items:center; gap:6px; color:#d7f99a; font-weight:800; white-space:nowrap; }
+.ft-challenge-reward > span { color:#b8f36b; }
+.ft-challenge-reward small { font-size:10px; letter-spacing:.1em; color:#a5adba; margin-left:2px; }
+
+.ft-settings-form {
+  display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:22px 24px !important; align-items:end; width:100%;
+}
+.ft-settings-form > label { display:flex !important; flex-direction:column; gap:9px !important; min-width:0; line-height:1.4; }
+.ft-settings-form input:not([type="checkbox"]), .ft-settings-form select { width:100%; min-width:0; box-sizing:border-box; }
+.ft-settings-form .ft-checkbox-label { flex-direction:row !important; align-items:center; gap:11px !important; min-height:46px; }
+.ft-settings-form .ft-checkbox-label input { flex:0 0 auto; }
+.ft-settings-form > button { justify-self:start; align-self:end; min-height:46px; margin:0 !important; }
+.ft-settings-form > label:has(input[type="time"]) { grid-column:1; }
+.ft-settings-form > button { grid-column:1 / -1; }
+
+.ft-chart { align-items:stretch !important; gap:clamp(8px,1.5vw,18px) !important; min-width:0; }
+.ft-chart-column { min-width:0; display:flex !important; flex:1 1 0; flex-direction:column; align-items:center; justify-content:flex-end; }
+.ft-chart-column > small { display:block; width:100%; min-height:28px; margin-top:10px; text-align:center; line-height:1.25; overflow-wrap:anywhere; white-space:normal; }
+.ft-chart-track { min-height:100px; width:min(100%,42px); overflow:hidden; border-radius:10px 10px 5px 5px; }
+.ft-chart-value { min-height:18px; line-height:1.2; font-size:12px; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.ft-inline-form { display:grid !important; grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto; align-items:end; gap:16px !important; }
+.ft-inline-form label { display:flex !important; flex-direction:column; gap:8px !important; min-width:0; }
+.ft-inline-form input { width:100%; min-width:0; box-sizing:border-box; }
+.ft-inline-form button { min-height:46px; white-space:nowrap; }
+
+.ft-saved-list { display:flex; flex-direction:column; gap:10px; margin-top:20px; }
+.ft-saved-row { display:grid !important; grid-template-columns:minmax(0,1fr) auto auto; align-items:center; gap:14px !important; padding:13px 15px; border:1px solid rgba(150,165,185,.15); border-radius:13px; background:rgba(255,255,255,.025); }
+.ft-saved-row > span { color:var(--muted, #9ba4b3); min-width:0; }
+.ft-saved-row > strong { font-size:15px; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.ft-saved-row .delete-btn { flex:0 0 auto; width:32px; height:32px; border-radius:9px; }
+
+.ft-achievement-grid { display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px !important; align-items:stretch; }
+.ft-achievement { display:grid !important; grid-template-columns:54px minmax(0,1fr); grid-template-rows:auto auto; align-items:start; gap:12px 14px !important; min-width:0; padding:19px !important; border-radius:17px !important; }
+.ft-achievement-icon { grid-row:1 / span 2; display:grid; place-items:center; width:52px; height:52px; border-radius:15px; font-size:24px; background:rgba(255,255,255,.06); }
+.ft-achievement > div:nth-child(2) { min-width:0; }
+.ft-achievement > div:nth-child(2) strong { display:block; line-height:1.35; overflow-wrap:anywhere; }
+.ft-achievement > div:nth-child(2) p { margin:7px 0 0; line-height:1.5; }
+.ft-achievement-status { justify-self:start; display:inline-flex; align-items:center; width:max-content; max-width:100%; border-radius:999px; padding:5px 9px; font-size:10px; font-weight:800; letter-spacing:.08em; }
+.ft-achievement-status.is-unlocked { color:#d9ff9e; background:rgba(180,243,107,.13); border:1px solid rgba(180,243,107,.28); }
+.ft-achievement-status.is-locked { color:#9299a7; background:rgba(140,150,165,.09); border:1px solid rgba(140,150,165,.14); }
+.ft-achievement.unlocked { border:1px solid rgba(180,243,107,.3) !important; background:linear-gradient(135deg,rgba(180,243,107,.075),rgba(255,255,255,.018)) !important; }
+.ft-achievement.locked { opacity:.72; }
+
+.ft-rpg-card { overflow:hidden; position:relative; }
+.ft-rpg-hero { display:flex; align-items:center; gap:18px; padding:22px; margin-top:8px; border:1px solid rgba(180,243,107,.22); border-radius:18px; background:radial-gradient(ellipse at 5% 0%,rgba(180,243,107,.13),transparent 48%),rgba(255,255,255,.018); }
+.ft-rpg-emblem { display:grid; place-items:center; flex:0 0 70px; width:70px; height:70px; border-radius:22px; color:#e4ffc1; font-size:36px; background:linear-gradient(145deg,#455c37,#202b21); border:1px solid rgba(196,247,141,.55); box-shadow:0 0 32px rgba(180,243,107,.12),inset 0 1px rgba(255,255,255,.15); }
+.ft-rpg-copy { min-width:0; flex:1; }
+.ft-rpg-kicker { font-size:10px; font-weight:800; letter-spacing:.16em; color:#b4f36b; }
+.ft-rpg-copy h3 { margin:4px 0; font-size:clamp(23px,3vw,31px); line-height:1.15; }
+.ft-rpg-copy p { margin:0; color:#aab2bf; font-size:13px; }
+.ft-rpg-copy p span { padding:0 5px; }
+.ft-rpg-xp { text-align:right; display:flex; flex-direction:column; gap:4px; }
+.ft-rpg-xp strong { color:#d9ff9e; font-size:25px; }
+.ft-rpg-xp span { color:#98a1af; font-size:11px; white-space:nowrap; }
+.ft-rpg-tier-track { display:grid !important; grid-template-columns:repeat(7,minmax(0,1fr)); gap:8px !important; margin:20px 0 14px; }
+.ft-rpg-tier { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:7px; min-width:0; padding:12px 4px; border:1px solid rgba(145,155,170,.13); border-radius:12px; color:#737d8d; background:rgba(255,255,255,.018); }
+.ft-rpg-tier > span { font-size:17px; }
+.ft-rpg-tier small { font-size:10px; font-weight:700; }
+.ft-rpg-tier.passed { color:#bdc6d3; }
+.ft-rpg-tier.active { color:#dfffad; border-color:rgba(180,243,107,.6); background:rgba(180,243,107,.1); box-shadow:0 0 18px rgba(180,243,107,.06); }
+.ft-rpg-progress-meta { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:9px; color:#a8b0bd; font-size:12px; }
+.ft-rpg-progress-meta span:first-child { color:#d8e0e9; font-weight:800; }
+.ft-rpg-progress { height:9px !important; border-radius:99px !important; overflow:hidden; background:rgba(255,255,255,.08) !important; }
+.ft-rpg-progress .ft-progress-fill { border-radius:99px; background:linear-gradient(90deg,#8ccf45,#d9ff9e) !important; box-shadow:0 0 14px rgba(180,243,107,.35); }
+
+.ft-pr-grid { display:grid !important; grid-template-columns:repeat(3,minmax(0,1fr)); gap:15px !important; }
+.ft-pr-card { min-width:0; padding:18px; border:1px solid rgba(150,165,185,.15); border-radius:16px; background:linear-gradient(145deg,rgba(255,255,255,.035),rgba(255,255,255,.012)); transition:transform .18s ease,border-color .18s ease; }
+.ft-pr-card:hover { transform:translateY(-2px); border-color:rgba(180,243,107,.35); }
+.ft-pr-card-top { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.ft-pr-icon { display:grid; place-items:center; width:38px; height:38px; border-radius:12px; background:rgba(180,243,107,.1); font-size:18px; }
+.ft-pr-label { font-size:9px; font-weight:800; letter-spacing:.1em; color:#a8b1bf; text-align:right; }
+.ft-pr-card h3 { margin:17px 0 6px; font-size:16px; line-height:1.35; overflow-wrap:anywhere; }
+.ft-pr-metric { color:#d9ff9e; font-size:clamp(25px,3vw,34px); font-weight:850; letter-spacing:-.04em; line-height:1.2; font-variant-numeric:tabular-nums; }
+.ft-pr-metric span { font-size:14px; letter-spacing:0; color:#a9b2bf; }
+.ft-pr-footer { display:flex; justify-content:space-between; flex-wrap:wrap; gap:6px 12px; margin-top:17px; padding-top:12px; border-top:1px solid rgba(150,165,185,.13); color:#8f99a8; font-size:11px; line-height:1.4; }
+
+@media (max-width: 900px) {
+  .ft-pr-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .ft-chart { gap:8px !important; }
+}
+@media (max-width: 640px) {
+  .ft-settings-form { grid-template-columns:minmax(0,1fr) !important; gap:18px !important; }
+  .ft-settings-form > label:has(input[type="time"]), .ft-settings-form > button { grid-column:1; }
+  .ft-inline-form { grid-template-columns:minmax(0,1fr) !important; gap:14px !important; }
+  .ft-inline-form button { width:100%; }
+  .ft-achievement-grid { grid-template-columns:minmax(0,1fr) !important; }
+  .ft-achievement { padding:15px !important; }
+  .ft-pr-grid { grid-template-columns:minmax(0,1fr) !important; }
+  .ft-rpg-hero { padding:15px; gap:12px; flex-wrap:wrap; }
+  .ft-rpg-emblem { width:56px; height:56px; flex-basis:56px; border-radius:17px; font-size:29px; }
+  .ft-rpg-xp { margin-left:auto; }
+  .ft-rpg-tier-track { gap:5px !important; }
+  .ft-rpg-tier { padding:9px 2px; }
+  .ft-rpg-tier small { font-size:8px; }
+  .ft-chart-column > small { font-size:10px; }
+  .ft-saved-row { gap:9px !important; padding:11px; }
+}
+
+
+/* FINAL TARGETED FIXES: keep charts inside their own cards and labels aligned. */
+.ft-chart {
+  display: flex !important;
+  align-items: stretch !important;
+  justify-content: space-between !important;
+  gap: clamp(6px, 1.4vw, 14px) !important;
+  width: 100%;
+  min-width: 0;
+  height: 220px !important;
+  padding: 12px 2px 0;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+.ft-chart-column {
+  display: flex !important;
+  flex: 1 1 0 !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 8px !important;
+  min-width: 0;
+  height: 100%;
+}
+.ft-chart-value {
+  display: block;
+  flex: 0 0 16px;
+  min-height: 16px;
+  line-height: 16px;
+  white-space: nowrap;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.ft-chart-track {
+  display: flex !important;
+  flex: 1 1 auto !important;
+  align-items: flex-end !important;
+  justify-content: center;
+  width: min(100%, 42px);
+  min-height: 0 !important;
+  height: auto !important;
+  overflow: hidden;
+  border: 1px solid #303847;
+  border-radius: 8px 8px 3px 3px;
+  background: #222936;
+  box-sizing: border-box;
+}
+.ft-chart-bar {
+  display: block;
+  width: 100%;
+  min-height: 0;
+  border-radius: 6px 6px 2px 2px;
+  background: linear-gradient(180deg, #d1ff9c, #92d34f);
+  transition: height .25s ease;
+}
+.ft-chart-column > small {
+  display: block;
+  flex: 0 0 auto;
+  width: 100%;
+  min-height: 24px;
+  margin: 0;
+  text-align: center;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  font-size: 11px;
+}
+.ft-monthly-chart {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 16px !important;
+  width: 100%;
+  padding: 18px 2px 4px;
+}
+.ft-monthly-row {
+  display: grid !important;
+  grid-template-columns: 48px minmax(0, 1fr) 32px !important;
+  align-items: center !important;
+  gap: 14px !important;
+  min-width: 0;
+}
+.ft-monthly-label, .ft-monthly-count {
+  display: block;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.ft-monthly-track {
+  display: block;
+  width: 100%;
+  height: 13px !important;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #222936;
+}
+.ft-monthly-fill {
+  display: block;
+  height: 100% !important;
+  min-height: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #92d34f, #c4ff85);
+}
+@media (max-width: 560px) {
+  .ft-chart { height: 190px !important; gap: 5px !important; }
+  .ft-chart-value, .ft-chart-column > small { font-size: 10px; }
+  .ft-monthly-row { grid-template-columns: 42px minmax(0, 1fr) 26px !important; gap: 9px !important; }
+  .ft-monthly-chart { gap: 14px !important; }
+}

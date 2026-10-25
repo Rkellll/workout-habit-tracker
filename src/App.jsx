@@ -998,21 +998,22 @@ function App({ userId, userEmail = "", onLogout }) {
           <WorkoutList items={sorted.slice(0, 5)} />
         </section>
 
-        <section className="panel ft-section-gap">
-          <PanelHeading title="Your level" subtitle="Earn XP by logging real workout entries" />
-          <div className="ft-level-row">
-            <div className="ft-level-icon">⭐</div>
-            <div className="ft-level-main">
-              <strong>Level {level.level}</strong>
-              <p>{xp} total XP · {level.next - level.withinLevel} XP to next level</p>
-              <div className="ft-progress-track">
-                <div
-                  className="ft-progress-fill"
-                  style={{ width: `${(level.withinLevel / level.next) * 100}%` }}
-                />
-              </div>
+        <section className="panel ft-section-gap ft-rpg-card">
+          <PanelHeading title="Your rank" subtitle="Every session moves you closer to the next tier" />
+          <div className="ft-rpg-hero">
+            <div className="ft-rpg-emblem" aria-label={`${rank.name} rank`}>✦</div>
+            <div className="ft-rpg-copy">
+              <span className="ft-rpg-kicker">CURRENT TIER</span>
+              <h3>{rank.name}</h3>
+              <p>Level {level.level} <span>·</span> {xp.toLocaleString()} XP earned</p>
             </div>
+            <div className="ft-rpg-xp"><strong>{rankProgress}%</strong><span>to next tier</span></div>
           </div>
+          <div className="ft-rank-tiers ft-rpg-tier-track">
+            {RANKS.map((tier) => <div className={`ft-rpg-tier ${tier.name === rank.name ? "active" : xp >= tier.min ? "passed" : "locked"}`} key={tier.name}><span>{xp >= tier.min ? "✦" : "◇"}</span><small>{tier.name}</small></div>)}
+          </div>
+          <div className="ft-rpg-progress-meta"><span>{xp.toLocaleString()} XP</span><span>{nextRank ? `${Math.max(0, nextRank.min - xp).toLocaleString()} XP to ${nextRank.name}` : "MAXIMUM RANK REACHED"}</span></div>
+          <div className="ft-progress-track ft-rpg-progress"><div className="ft-progress-fill" style={{ width: `${rankProgress}%` }} /></div>
         </section>
       </>
     );
@@ -1206,7 +1207,7 @@ function App({ userId, userEmail = "", onLogout }) {
                   <div className="ft-saved-row" key={w.id}>
                     <span>{formatDate(w.date)}</span>
                     <strong>{w.weight} kg</strong>
-                    <button className="delete-btn" onClick={() => setBodyWeights((previous) => previous.filter((item) => item.id !== w.id))}>×</button>
+                    <button className="delete-btn" type="button" aria-label={`Delete weight record from ${formatDate(w.date)}`} title="Delete record" onClick={() => setBodyWeights((previous) => previous.filter((item) => item.id !== w.id))}>×</button>
                   </div>
                 ))}
               </div>
@@ -1255,17 +1256,19 @@ function App({ userId, userEmail = "", onLogout }) {
         <section className="panel ft-section-gap">
           <PanelHeading title="Exercise overview" subtitle="Best recorded weight for each exercise" />
           {exerciseNames.length ? (
-            <div className="ft-table">
+            <div className="ft-pr-grid">
               {exerciseNames.map((name) => {
                 const history = workouts.filter((w) => w.name === name);
                 const best = Math.max(0, ...history.map((w) => Number(w.weight || 0)));
                 const latest = [...history].sort((a, b) => dateObject(b.date) - dateObject(a.date))[0];
 
                 return (
-                  <div className="ft-table-row" key={name}>
-                    <div><strong>{name}</strong><small>{history.length} entries · latest {formatDate(latest.date)}</small></div>
-                    <strong>{best} kg PR</strong>
-                  </div>
+                  <article className="ft-pr-card" key={name}>
+                    <div className="ft-pr-card-top"><span className="ft-pr-icon">🏆</span><span className="ft-pr-label">PERSONAL RECORD</span></div>
+                    <h3>{name}</h3>
+                    <div className="ft-pr-metric">{best}<span> kg</span></div>
+                    <div className="ft-pr-footer"><span>{history.length} {history.length === 1 ? "entry" : "entries"}</span><span>Latest · {formatDate(latest.date)}</span></div>
+                  </article>
                 );
               })}
             </div>
@@ -1358,7 +1361,7 @@ function App({ userId, userEmail = "", onLogout }) {
                 <strong>{achievement.name}</strong>
                 <p>{achievement.description}</p>
               </div>
-              <span>{achievement.unlocked ? "UNLOCKED" : "LOCKED"}</span>
+              <span className={`ft-achievement-status ${achievement.unlocked ? "is-unlocked" : "is-locked"}`}>{achievement.unlocked ? "UNLOCKED" : "LOCKED"}</span>
             </div>
           ))}
         </div>
@@ -1420,8 +1423,8 @@ function App({ userId, userEmail = "", onLogout }) {
                   <div className="ft-progress-fill" style={{ width: `${Math.min(100, (challenge.current / challenge.target) * 100)}%` }} />
                 </div>
                 <div className="ft-challenge-meta">
-                  <span>{challenge.current} / {challenge.target}</span>
-                  <strong>{challenge.reward} XP reward</strong>
+                  <span className="ft-challenge-progress">{challenge.current} <i>/</i> {challenge.target}</span>
+                  <span className="ft-challenge-reward"><span aria-hidden="true">✦</span> {challenge.reward} XP <small>REWARD</small></span>
                 </div>
                 <small className="ft-muted">Progress is calculated from your workout records.</small>
               </section>
