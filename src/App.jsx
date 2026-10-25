@@ -32,10 +32,29 @@ const emptyForm = () => ({
   note: "",
 });
 
-function readStoredData() {
+function readStoredData(userId) {
+  // Browser backups are isolated by Firebase UID. Never read the old shared
+  // keys here, because they can contain another account's private data.
+  if (!userId) {
+    return {
+      workouts: [],
+      goal: 4,
+      bodyWeights: [],
+      drafts: [],
+      templates: [],
+      achievements: [],
+      profile: {
+        name: "Fitness Journey",
+        unit: "kg",
+        reminder: "18:00",
+        reminderEnabled: false,
+      },
+    };
+  }
+
   try {
-    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}");
-    const extra = JSON.parse(localStorage.getItem(EXTRA_KEY) || "{}");
+    const saved = JSON.parse(localStorage.getItem(`${STORAGE_KEY}:${userId}`) || "{}");
+    const extra = JSON.parse(localStorage.getItem(`${EXTRA_KEY}:${userId}`) || "{}");
 
     return {
       workouts: Array.isArray(saved.workouts) ? saved.workouts : [],
@@ -239,7 +258,7 @@ function calculateXp(workouts, goal, streak) {
 }
 
 function App({ userId, userEmail = "", onLogout }) {
-  const initial = useMemo(() => readStoredData(), []);
+  const initial = useMemo(() => readStoredData(userId), [userId]);
   const cloudReadyRef = useRef(false);
   const cloudDataRef = useRef("");
   const [cloudStatus, setCloudStatus] = useState("connecting");
@@ -273,17 +292,20 @@ function App({ userId, userEmail = "", onLogout }) {
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [timerRunning, setTimerRunning] = useState(false);
 
-  // Keep a local backup, but Firestore is the primary source of truth.
+  // Keep a separate local backup for each signed-in account. Do not write
+  // anything until that account's Firestore document has loaded successfully.
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ workouts, goal }));
-  }, [workouts, goal]);
+    if (!userId || !cloudReadyRef.current) return;
+    localStorage.setItem(`${STORAGE_KEY}:${userId}`, JSON.stringify({ workouts, goal }));
+  }, [userId, workouts, goal, cloudStatus]);
 
   useEffect(() => {
+    if (!userId || !cloudReadyRef.current) return;
     localStorage.setItem(
-      EXTRA_KEY,
+      `${EXTRA_KEY}:${userId}`,
       JSON.stringify({ bodyWeights, drafts, templates, achievements, profile })
     );
-  }, [bodyWeights, drafts, templates, achievements, profile]);
+  }, [userId, bodyWeights, drafts, templates, achievements, profile, cloudStatus]);
 
   const cloudData = useMemo(() => ({
     workouts,
@@ -295,8 +317,9 @@ function App({ userId, userEmail = "", onLogout }) {
     profile,
   }), [workouts, goal, bodyWeights, drafts, templates, achievements, profile]);
 
-  // Each account gets its own document. Existing browser data is migrated only
-  // if that account does not yet have a FitTrack document in Firestore.
+  // Each account gets its own Firestore document. If it has no cloud document
+  // yet, only that same UID's isolated local backup may be migrated. The old
+  // shared localStorage keys are deliberately not imported into new accounts.
   useEffect(() => {
     if (!userId) {
       cloudReadyRef.current = false;
@@ -335,8 +358,9 @@ function App({ userId, userEmail = "", onLogout }) {
           cloudReadyRef.current = true;
           setCloudStatus("Cloud synced");
         } else {
-          // First-time cloud setup: preserve and migrate this browser's saved data.
-          const local = readStoredData();
+          // First-time cloud setup: use only this account's own local backup.
+          // A new account with no backup starts with clean, independent data.
+          const local = readStoredData(userId);
           const serialized = JSON.stringify(local);
           cloudDataRef.current = serialized;
           try {
@@ -393,7 +417,7 @@ function App({ userId, userEmail = "", onLogout }) {
   const rankForProfile = getRank(xpForProfile);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || !cloudReadyRef.current) return;
     const publicProfileRef = doc(db, "publicProfiles", userId);
     setDoc(publicProfileRef, {
       uid: userId,
@@ -407,7 +431,7 @@ function App({ userId, userEmail = "", onLogout }) {
     }, { merge: true }).catch((error) => {
       console.error("Could not update public FitTrack profile:", error);
     });
-  }, [userId, userEmail, profile.name, profile.avatarDataUrl, xpForProfile, rankForProfile.name, workouts.length]);
+  }, [userId, userEmail, profile.name, profile.avatarDataUrl, xpForProfile, rankForProfile.name, workouts.length, cloudStatus]);
 
   useEffect(() => {
     if (!userId) return undefined;
