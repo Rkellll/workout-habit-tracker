@@ -22,6 +22,15 @@ const EXTRA_KEY = "fittrack-extra-data";
 
 const today = () => new Date().toISOString().slice(0, 10);
 
+const KG_TO_LB = 2.2046226218;
+const unitLabel = (unit) => (unit === "lb" ? "lb" : "kg");
+const fromKg = (value, unit = "kg") => Number(value || 0) * (unit === "lb" ? KG_TO_LB : 1);
+const toKg = (value, unit = "kg") => Number(value || 0) / (unit === "lb" ? KG_TO_LB : 1);
+const formatWeight = (value, unit = "kg") => {
+  const converted = fromKg(value, unit);
+  return Number(converted.toFixed(2)).toString();
+};
+
 const emptyForm = () => ({
   date: today(),
   name: "",
@@ -659,7 +668,7 @@ function App({ userId, userEmail = "", onLogout }) {
       name: workout.name || "",
       sets: String(workout.sets ?? 3),
       reps: String(workout.reps ?? 10),
-      weight: String(workout.weight ?? 0),
+      weight: String(Number(fromKg(workout.weight ?? 0, profile.unit).toFixed(2))),
       duration: String(workout.duration ?? 30),
       note: workout.note || "",
     });
@@ -682,7 +691,7 @@ function App({ userId, userEmail = "", onLogout }) {
       name,
       sets: Math.max(1, Number(form.sets) || 1),
       reps: Math.max(1, Number(form.reps) || 1),
-      weight: Math.max(0, Number(form.weight) || 0),
+      weight: Math.max(0, toKg(form.weight, profile.unit) || 0),
       duration: Math.max(0, timerSeconds > 0 ? Math.ceil(timerSeconds / 60) : Number(form.duration) || 0),
       note: form.note.trim(),
     };
@@ -721,7 +730,7 @@ function App({ userId, userEmail = "", onLogout }) {
 
     setBodyWeights((previous) => [
       ...previous.filter((w) => w.date !== weightDate),
-      { id: `${Date.now()}`, date: weightDate, weight: value },
+      { id: `${Date.now()}`, date: weightDate, weight: toKg(value, profile.unit) },
     ]);
 
     setWeightInput("");
@@ -733,7 +742,8 @@ function App({ userId, userEmail = "", onLogout }) {
     const draft = {
       id: `${Date.now()}`,
       name,
-      form: { ...form },
+      form: { ...form, weight: String(toKg(form.weight, profile.unit)) },
+      weightStoredKg: true,
       savedAt: new Date().toISOString(),
     };
 
@@ -743,7 +753,7 @@ function App({ userId, userEmail = "", onLogout }) {
   }
 
   function resumeDraft(draft) {
-    setForm({ ...emptyForm(), ...draft.form });
+    setForm({ ...emptyForm(), ...draft.form, weight: String(Number(fromKg(draft.form?.weight ?? 0, profile.unit).toFixed(2))) });
     setEditingId(null);
     setShowForm(true);
   }
@@ -760,7 +770,8 @@ function App({ userId, userEmail = "", onLogout }) {
       {
         id: `${Date.now()}`,
         name,
-        form: { ...form, name: form.name || name },
+        form: { ...form, weight: String(toKg(form.weight, profile.unit)), name: form.name || name },
+        weightStoredKg: true,
       },
       ...previous,
     ]);
@@ -770,7 +781,7 @@ function App({ userId, userEmail = "", onLogout }) {
   }
 
   function useTemplate(template) {
-    setForm({ ...emptyForm(), ...template.form, date: today() });
+    setForm({ ...emptyForm(), ...template.form, weight: String(Number(fromKg(template.form?.weight ?? 0, profile.unit).toFixed(2))), date: today() });
     setEditingId(null);
     setShowForm(true);
   }
@@ -842,7 +853,7 @@ function App({ userId, userEmail = "", onLogout }) {
             <div className="exercise-details">
               <strong>{w.name}</strong>
               <span>
-                {w.sets} sets × {w.reps} reps · {w.weight} kg
+                {w.sets} sets × {w.reps} reps · {formatWeight(w.weight, profile.unit)} {unitLabel(profile.unit)}
               </span>
               <small>
                 {formatDate(w.date)} · {w.duration || 0} min
@@ -942,7 +953,7 @@ function App({ userId, userEmail = "", onLogout }) {
           <StatCard
             icon="🏆"
             label="HEAVIEST WEIGHT"
-            value={`${heaviest} kg`}
+            value={`${formatWeight(heaviest, profile.unit)} ${unitLabel(profile.unit)}`}
             note="Across your exercise entries"
           />
         </div>
@@ -1001,7 +1012,7 @@ function App({ userId, userEmail = "", onLogout }) {
                 <strong>{new Set(thisMonth.map((w) => w.date)).size}</strong>
               </div>
               <div><span>Training time</span><strong>{sumDuration(thisMonth)} min</strong></div>
-              <div><span>Volume lifted</span><strong>{Math.round(totalVolume(thisMonth)).toLocaleString()} kg</strong></div>
+              <div><span>Volume lifted</span><strong>{Math.round(fromKg(totalVolume(thisMonth), profile.unit)).toLocaleString()} {unitLabel(profile.unit)}</strong></div>
             </div>
             <div className="ft-mini-note">
               Your summaries update automatically when you add, edit, or delete workouts.
@@ -1031,7 +1042,7 @@ function App({ userId, userEmail = "", onLogout }) {
               <h3>{rank.name}</h3>
               <p>Level {level.level} <span>·</span> {xp.toLocaleString()} XP earned</p>
             </div>
-            <div className="ft-rpg-xp"><strong>{rankProgress}%</strong><span>to next tier</span></div>
+            <div className="ft-rpg-xp"><strong>{Number(rankProgress).toFixed(2)}%</strong><span>to next tier</span></div>
           </div>
           <div className="ft-rank-tiers ft-rpg-tier-track">
             {RANKS.map((tier) => <div className={`ft-rpg-tier ${tier.name === rank.name ? "active" : xp >= tier.min ? "passed" : "locked"}`} key={tier.name}><span>{xp >= tier.min ? "✦" : "◇"}</span><small>{tier.name}</small></div>)}
@@ -1129,13 +1140,13 @@ function App({ userId, userEmail = "", onLogout }) {
   }
 
   function ExerciseProgressPage() {
-    const values = exerciseHistory.map((w) => Number(w.weight || 0));
+    const values = exerciseHistory.map((w) => fromKg(w.weight, profile.unit));
     const labels = exerciseHistory.map((w) =>
       dateObject(w.date).toLocaleDateString(undefined, { month: "short", day: "numeric" })
     );
 
     const difference = latestExercise && previousExercise
-      ? Number(latestExercise.weight || 0) - Number(previousExercise.weight || 0)
+      ? fromKg(latestExercise.weight, profile.unit) - fromKg(previousExercise.weight, profile.unit)
       : null;
 
     return (
@@ -1166,13 +1177,13 @@ function App({ userId, userEmail = "", onLogout }) {
         {selectedExercise && (
           <>
             <div className="stats-grid ft-section-gap">
-              <StatCard icon="🏆" label="PERSONAL RECORD" value={`${personalRecord} kg`} note={selectedExercise} />
-              <StatCard icon="↗" label="LATEST WEIGHT" value={`${latestExercise?.weight ?? 0} kg`} note={latestExercise ? formatDate(latestExercise.date) : "No entries"} />
+              <StatCard icon="🏆" label="PERSONAL RECORD" value={`${formatWeight(personalRecord, profile.unit)} ${unitLabel(profile.unit)}`} note={selectedExercise} />
+              <StatCard icon="↗" label="LATEST WEIGHT" value={`${formatWeight(latestExercise?.weight ?? 0, profile.unit)} ${unitLabel(profile.unit)}`} note={latestExercise ? formatDate(latestExercise.date) : "No entries"} />
               <StatCard icon="🔁" label="LATEST SETS" value={`${latestExercise?.sets ?? 0} × ${latestExercise?.reps ?? 0}`} note="Sets × reps" />
               <StatCard
                 icon="📊"
                 label="CHANGE"
-                value={difference === null ? "—" : `${difference > 0 ? "+" : ""}${difference} kg`}
+                value={difference === null ? "—" : `${difference > 0 ? "+" : ""}${Number(difference.toFixed(2))} ${unitLabel(profile.unit)}`}
                 note={previousExercise ? "Compared with previous entry" : "Log another entry to compare"}
               />
             </div>
@@ -1183,7 +1194,7 @@ function App({ userId, userEmail = "", onLogout }) {
                 <BarChart
                   values={values.slice(-10)}
                   labels={labels.slice(-10)}
-                  suffix="kg"
+                  suffix={unitLabel(profile.unit)}
                 />
               ) : <p className="ft-muted">No exercise history yet.</p>}
             </section>
@@ -1203,8 +1214,8 @@ function App({ userId, userEmail = "", onLogout }) {
               <input type="date" value={weightDate} onChange={(event) => setWeightDate(event.target.value)} />
             </label>
             <label>
-              Body weight (kg)
-              <input type="number" min="0.1" step="0.1" value={weightInput} onChange={(event) => setWeightInput(event.target.value)} placeholder="e.g. 58.5" required />
+              Body weight ({unitLabel(profile.unit)})
+              <input type="number" min="0.1" step="0.1" value={weightInput} onChange={(event) => setWeightInput(event.target.value)} placeholder={profile.unit === "lb" ? "e.g. 129" : "e.g. 58.5"} required />
             </label>
             <button className="primary-btn" type="submit">Save weight</button>
           </form>
@@ -1212,25 +1223,25 @@ function App({ userId, userEmail = "", onLogout }) {
           {bodyWeights.length > 0 && (
             <>
               <div className="ft-summary-list">
-                <div><span>Latest recorded weight</span><strong>{currentWeightEntry?.weight} kg</strong></div>
+                <div><span>Latest recorded weight</span><strong>{formatWeight(currentWeightEntry?.weight, profile.unit)} {unitLabel(profile.unit)}</strong></div>
                 <div><span>Records saved</span><strong>{bodyWeights.length}</strong></div>
               </div>
               <BarChart
                 values={[...bodyWeights]
                   .sort((a, b) => dateObject(a.date) - dateObject(b.date))
                   .slice(-10)
-                  .map((w) => Number(w.weight))}
+                  .map((w) => fromKg(w.weight, profile.unit))}
                 labels={[...bodyWeights]
                   .sort((a, b) => dateObject(a.date) - dateObject(b.date))
                   .slice(-10)
                   .map((w) => dateObject(w.date).toLocaleDateString(undefined, { month: "short", day: "numeric" }))}
-                suffix="kg"
+                suffix={unitLabel(profile.unit)}
               />
               <div className="ft-saved-list">
                 {[...bodyWeights].sort((a, b) => dateObject(b.date) - dateObject(a.date)).map((w) => (
                   <div className="ft-saved-row" key={w.id}>
                     <span>{formatDate(w.date)}</span>
-                    <strong>{w.weight} kg</strong>
+                    <strong>{formatWeight(w.weight, profile.unit)} {unitLabel(profile.unit)}</strong>
                     <button className="delete-btn" type="button" aria-label={`Delete weight record from ${formatDate(w.date)}`} title="Delete record" onClick={() => setBodyWeights((previous) => previous.filter((item) => item.id !== w.id))}>×</button>
                   </div>
                 ))}
@@ -1269,7 +1280,7 @@ function App({ userId, userEmail = "", onLogout }) {
           <StatCard icon="🏋️" label="EXERCISE ENTRIES" value={workouts.length} />
           <StatCard icon="📅" label="TRAINING DAYS" value={days.length} />
           <StatCard icon="⏱️" label="TOTAL MINUTES" value={totalMinutes} />
-          <StatCard icon="⚖️" label="TOTAL VOLUME" value={`${Math.round(volume).toLocaleString()} kg`} />
+          <StatCard icon="⚖️" label="TOTAL VOLUME" value={`${Math.round(fromKg(volume, profile.unit)).toLocaleString()} ${unitLabel(profile.unit)}`} />
         </div>
 
         <section className="panel ft-section-gap">
@@ -1290,7 +1301,7 @@ function App({ userId, userEmail = "", onLogout }) {
                   <article className="ft-pr-card" key={name}>
                     <div className="ft-pr-card-top"><span className="ft-pr-icon">🏆</span><span className="ft-pr-label">PERSONAL RECORD</span></div>
                     <h3>{name}</h3>
-                    <div className="ft-pr-metric">{best}<span> kg</span></div>
+                    <div className="ft-pr-metric">{formatWeight(best, profile.unit)}<span> {unitLabel(profile.unit)}</span></div>
                     <div className="ft-pr-footer"><span>{history.length} {history.length === 1 ? "entry" : "entries"}</span><span>Latest · {formatDate(latest.date)}</span></div>
                   </article>
                 );
@@ -1741,8 +1752,8 @@ function App({ userId, userEmail = "", onLogout }) {
 
               <div className="ft-form-grid">
                 <label>
-                  Weight (kg)
-                  <input type="number" min="0" step="0.5" value={form.weight} onChange={(event) => setForm((f) => ({ ...f, weight: event.target.value }))} required />
+                  Weight ({unitLabel(profile.unit)})
+                  <input type="number" min="0" step="0.1" value={form.weight} onChange={(event) => setForm((f) => ({ ...f, weight: event.target.value }))} required />
                 </label>
                 <label>
                   Duration (minutes)
