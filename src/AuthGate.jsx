@@ -8,6 +8,8 @@ import {
   signInWithEmailAndPassword,
   signOut,
   updateProfile,
+  sendEmailVerification,
+  reload,
 } from "firebase/auth";
 import { auth } from "../firebase";
 import App from "./App";
@@ -15,6 +17,8 @@ import App from "./App";
 export default function AuthGate() {
   const [user, setUser] = useState(null);
   const [checking, setChecking] = useState(true);
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [verificationMessage, setVerificationMessage] = useState("");
   const [isRegistering, setIsRegistering] = useState(false);
 
   const [name, setName] = useState("");
@@ -32,6 +36,7 @@ export default function AuthGate() {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+      setEmailVerified(Boolean(currentUser?.emailVerified));
       setChecking(false);
     });
 
@@ -87,7 +92,10 @@ export default function AuthGate() {
           displayName: trimmedName,
         });
 
+        await sendEmailVerification(credential.user);
         setUser(credential.user);
+        setEmailVerified(Boolean(credential.user.emailVerified));
+        setVerificationMessage(`A verification email was sent to ${trimmedEmail}. Open it and click the verification link before continuing.`);
       } else {
         const credential = await signInWithEmailAndPassword(
           auth,
@@ -96,6 +104,8 @@ export default function AuthGate() {
         );
 
         setUser(credential.user);
+        setEmailVerified(Boolean(credential.user.emailVerified));
+        setVerificationMessage(credential.user.emailVerified ? "" : "Please verify your email address before entering FITTRACK.");
       }
     } catch (err) {
       const messages = {
@@ -117,12 +127,65 @@ export default function AuthGate() {
           "Network error. Check your internet connection.",
         "auth/operation-not-allowed":
           "Email and password sign-in is not enabled in Firebase.",
+        "auth/invalid-action-code":
+          "This verification link is invalid or has expired. Request a new one.",
       };
 
       setError(
         messages[err.code] ||
           "Something went wrong. Please try again."
       );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function resendVerificationEmail() {
+    setError("");
+    setVerificationMessage("");
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      setError("Please log in again to request a verification email.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await sendEmailVerification(currentUser);
+      setVerificationMessage(`A new verification email was sent to ${currentUser.email || "your email address"}. Check your inbox and spam folder.`);
+    } catch (err) {
+      const messages = {
+        "auth/too-many-requests": "Too many requests. Please wait a while before trying again.",
+        "auth/network-request-failed": "Network error. Check your internet connection.",
+      };
+      setError(messages[err.code] || err.message || "Could not send the verification email.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function refreshVerificationStatus() {
+    setError("");
+    setVerificationMessage("");
+    const currentUser = auth.currentUser;
+    if (!currentUser) {
+      setUser(null);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await reload(currentUser);
+      const verified = Boolean(auth.currentUser?.emailVerified);
+      setEmailVerified(verified);
+      setUser(auth.currentUser);
+      if (verified) {
+        setVerificationMessage("Email verified! Loading your FITTRACK dashboard...");
+      } else {
+        setVerificationMessage("We haven't detected verification yet. Open the link in your email, then try again.");
+      }
+    } catch (err) {
+      setError(err.message || "Could not check verification status. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -146,7 +209,202 @@ export default function AuthGate() {
     );
   }
 
-  if (user) {
+  if (user && !emailVerified) {
+    return (
+      <div className="auth-page">
+        <div className="auth-card">
+          <div className="auth-brand">
+            <span className="auth-logo">F</span>
+            <span>FIT<span className="auth-accent">TRACK</span></span>
+          </div>
+          <p className="auth-eyebrow">ONE QUICK SECURITY STEP</p>
+          <h1>Verify your email</h1>
+          <p className="auth-description">
+            We need to confirm you can access this email before you enter FITTRACK.
+          </p>
+          <div className="auth-form">
+            <p className="auth-description">
+              Verification email sent to <strong>{user.email || email}</strong>.
+              Check your inbox and spam folder, then open the link from Firebase.
+            </p>
+            {verificationMessage && <p className="auth-description" role="status">{verificationMessage}</p>}
+            {error && <p className="auth-error" role="alert">{error}</p>}
+            <button className="auth-submit" type="button" onClick={refreshVerificationStatus} disabled={loading}>
+              {loading ? "Checking..." : "I've verified my email"}
+            </button>
+            <button className="auth-submit" type="button" onClick={resendVerificationEmail} disabled={loading} style={{ marginTop: 10 }}>
+              {loading ? "Please wait..." : "Resend verification email"}
+            </button>
+            <button className="auth-switch" type="button" onClick={() => signOut(auth)} style={{ marginTop: 14 }}>
+              Log out
+            </button>
+          </div>
+          <div className="auth-privacy-footer">
+            <button className="auth-privacy-link" type="button" onClick={() => setShowPrivacyPolicy(true)}>
+              Privacy Policy
+            </button>
+            <span aria-hidden="true">·</span>
+            <span>FITTRACK</span>
+          </div>
+        </div>
+        {showPrivacyPolicy && (
+        <div
+          className="privacy-modal-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setShowPrivacyPolicy(false);
+            }
+          }}
+        >
+          <section
+            className="privacy-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="privacy-policy-title"
+          >
+            <div className="privacy-modal-header">
+              <div>
+                <p className="privacy-modal-eyebrow">
+                  FITTRACK · YOUR DATA
+                </p>
+                <h2 id="privacy-policy-title">Privacy Policy</h2>
+                <p className="privacy-updated">
+                  Last updated: October 25, 2026
+                </p>
+              </div>
+              <button
+                type="button"
+                className="privacy-close"
+                aria-label="Close Privacy Policy"
+                onClick={() => setShowPrivacyPolicy(false)}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="privacy-modal-content">
+              <p>
+                This Privacy Policy explains how FITTRACK handles
+                information when you use this workout and habit-tracking
+                application. Use FITTRACK only with information you are
+                comfortable storing in the app.
+              </p>
+
+              <h3>1. Information we store</h3>
+              <p>Depending on the features you use, FITTRACK may store:</p>
+              <ul>
+                <li>
+                  <strong>Account information:</strong> your email address
+                  and Firebase account identifier, used for sign-in and
+                  account separation.
+                </li>
+                <li>
+                  <strong>Fitness information:</strong> workout dates,
+                  exercises, sets, repetitions, weights lifted, notes,
+                  goals, body-weight entries, workout drafts, templates,
+                  achievements, and progress summaries you enter.
+                </li>
+                <li>
+                  <strong>Profile and community information:</strong> your
+                  chosen profile name, avatar, XP, rank, workout count,
+                  friend requests, and accepted friendships. Profile
+                  details used by friends or the leaderboard may be
+                  visible to other FITTRACK users.
+                </li>
+                <li>
+                  <strong>Local storage:</strong> FITTRACK may save
+                  account-specific copies of your app data in your browser
+                  to support the experience and help retain data between
+                  visits.
+                </li>
+              </ul>
+
+              <h3>2. How information is used</h3>
+              <p>
+                Information is used to sign you in, display your fitness
+                dashboard, calculate progress and achievements, save your
+                data, and support friend and leaderboard features.
+                Avoid entering sensitive information into workout notes.
+              </p>
+
+              <h3>3. Firebase and data storage</h3>
+              <p>
+                FITTRACK uses Firebase Authentication and Cloud Firestore
+                for sign-in and cloud data storage. Information sent to
+                these services is handled subject to Google's applicable
+                service terms and privacy documentation. Data may also
+                remain in your browser's local storage.
+              </p>
+
+              <h3>4. What other users can see</h3>
+              <p>
+                Your published profile details—such as display name,
+                avatar, XP, rank, and workout count—may appear to other
+                users in friend lists or the leaderboard. Private workout
+                logs and body-weight entries are intended to remain in
+                your own account data.
+              </p>
+
+              <h3>5. Keeping your information safe</h3>
+              <p>
+                Keep your password private and sign out on shared devices.
+                No online service or local storage can be guaranteed
+                completely secure. Private cloud access also depends on
+                correctly configured Firebase security rules.
+              </p>
+
+              <h3>6. Retention and deletion</h3>
+              <p>
+                Account data may remain in cloud and browser storage until
+                deleted. Signing out does not delete saved data. Contact
+                the FITTRACK administrator or developer for account or
+                data-deletion requests.
+              </p>
+
+              <h3>7. Children's privacy</h3>
+              <p>
+                FITTRACK is not designed to knowingly collect personal
+                information from children without appropriate permission
+                from a parent or guardian.
+              </p>
+
+              <h3>8. Changes to this policy</h3>
+              <p>
+                This policy may be updated as FITTRACK changes. The latest
+                version and its update date will be shown here.
+              </p>
+
+              <h3>9. Contact</h3>
+              <p>
+                For privacy questions or data-deletion requests, contact
+                the FITTRACK app administrator or developer.
+              </p>
+
+              <p className="privacy-note">
+                This is a general in-app privacy notice, not legal advice.
+                The app owner should review it against the deployed app,
+                Firebase security rules, and applicable privacy
+                requirements before publication.
+              </p>
+            </div>
+
+            <div className="privacy-modal-actions">
+              <button
+                type="button"
+                className="auth-submit"
+                onClick={() => setShowPrivacyPolicy(false)}
+              >
+                Close policy
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+      </div>
+    );
+  }
+
+  if (user && emailVerified) {
     return (
       <App
         key={user.uid}
