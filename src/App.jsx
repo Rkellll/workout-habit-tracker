@@ -266,7 +266,7 @@ function calculateXp(workouts, goal, streak) {
   return workoutXp + goalXp + prXp + streakXp;
 }
 
-function App({ userId, userEmail = "", onLogout }) {
+function App({ userId, userEmail = "", userName = "", onLogout }) {
   const initial = useMemo(() => readStoredData(userId), [userId]);
   const cloudReadyRef = useRef(false);
   const cloudDataRef = useRef("");
@@ -352,9 +352,20 @@ function App({ userId, userEmail = "", onLogout }) {
             drafts: Array.isArray(remote.drafts) ? remote.drafts : [],
             templates: Array.isArray(remote.templates) ? remote.templates : [],
             achievements: Array.isArray(remote.achievements) ? remote.achievements : [],
-            profile: remote.profile || {
-              name: "Fitness Journey", unit: "kg", reminder: "18:00", reminderEnabled: false,
-            },
+            profile: (() => {
+              const savedProfile = remote.profile || {
+                name: "Fitness Journey", unit: "kg", reminder: "18:00", reminderEnabled: false,
+              };
+              // Use the Firebase registration username when the profile has
+              // never been personalized and still has the starter placeholder.
+              const savedName = String(savedProfile.name || "").trim();
+              return {
+                ...savedProfile,
+                name: (!savedName || savedName === "Fitness Journey")
+                  ? (String(userName || "").trim() || savedName || "Fitness Journey")
+                  : savedName,
+              };
+            })(),
           };
           cloudDataRef.current = JSON.stringify(normalized);
           setWorkouts(normalized.workouts);
@@ -380,7 +391,13 @@ function App({ userId, userEmail = "", onLogout }) {
             setDrafts(local.drafts);
             setTemplates(local.templates);
             setAchievements(local.achievements);
-            setProfile(local.profile);
+            const localName = String(local.profile?.name || "").trim();
+            setProfile({
+              ...local.profile,
+              name: (!localName || localName === "Fitness Journey")
+                ? (String(userName || "").trim() || localName || "Fitness Journey")
+                : localName,
+            });
             cloudReadyRef.current = true;
             setCloudStatus("Cloud synced");
           } catch (error) {
@@ -400,7 +417,7 @@ function App({ userId, userEmail = "", onLogout }) {
       unsubscribe();
       cloudReadyRef.current = false;
     };
-  }, [userId]);
+  }, [userId, userName]);
 
   // Write changes to the signed-in user's Firestore document. Snapshot updates
   // from another device are not written back unless the data actually differs.
